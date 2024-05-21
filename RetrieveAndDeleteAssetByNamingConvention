@@ -1,0 +1,87 @@
+<script runat="server">
+    Platform.Load("core", "1");
+
+    var restInstanceUrl = "https://mc4fr7rnvdyszcxppqbhvywvjcd4.rest.marketingcloudapis.com/",
+        accessToken     = "eyJhbGciOiJIUzI1NiIsImtpZCI6IjQiLCJ2ZXIiOiIxIiwidHlwIjoiSldUIn0.eyJhY2Nlc3NfdG9rZW4iOiI3QXdhU2JCekxXQlVYRjdEWFNTZ3o3UXUiLCJjbGllbnRfaWQiOiIwcjMzd25lajNmMmR2Y3YycjFoMWNlanMiLCJlaWQiOjcyODE3MDQsInN0YWNrX2tleSI6IlM3IiwicGxhdGZvcm1fdmVyc2lvbiI6MiwiY2xpZW50X3R5cGUiOiJTZXJ2ZXJUb1NlcnZlciIsInBpZCI6MTEwfQ.zYCPOAZ9eJvEV691wdfDmocWgMqct2GJPWOnyJaZNmU.KLDAHSsN0k8swmJIoAaibsGy8sG8jtz-3Gnupsc7XPefs2jUgIQ50Or7CfRFkTDq9WxYK3ngcpnUwUHBHiyH8WVqqOydzu48eCLWwIXnuEs5BLBb4zF-vkHO_75Dd7K-cxiP2-hDTCd-HLNXCbET7Aj2iBl7LA006-qrz84w-";
+
+    try {
+        // Retrieve assets
+        var payload = {
+            page: {
+                page: 1,
+                pageSize: 50
+            },
+            query: {
+                property: "name",
+                simpleOperator: "startsWith",
+                value: "testimage_"
+            },
+            sort: [
+                {
+                    property: "id",
+                    direction: "ASC"
+                }
+            ],
+            fields: [
+                "id"
+            ]
+        };
+
+        var endpoint = restInstanceUrl + "asset/v1/content/assets/query";
+
+        var request = new Script.Util.HttpRequest(endpoint);
+        request.emptyContentHandling = 0;
+        request.retries = 2;
+        request.continueOnError = true;
+        request.setHeader("Authorization", "Bearer " + accessToken);
+        request.method = "POST";
+        request.contentType = "application/json";
+        request.postData = Stringify(payload);
+
+        var results = request.send();
+        var assets = Platform.Function.ParseJSON(String(results.content));
+
+        var assetIds = [];
+        if (assets && assets.items && assets.items.length > 0) {
+            for (var i = 0; i < assets.items.length; i++) {
+                assetIds.push(assets.items[i].id);
+            }
+
+            // Delete retrieved assets
+            var deletedAssets = deleteAssets(assetIds);
+
+            // Log the result of deleting assets
+            Write("Deleted Assets: " + Stringify(deletedAssets));
+        } else {
+            Write("No assets found to delete.");
+        }
+
+    } catch(error) {
+        Write("Error: " + Stringify(error));
+    }
+
+    // Function to delete assets
+    function deleteAssets(assetIds) {
+        var deletedAssets = [];
+        for (var i = 0; i < assetIds.length; i++) {
+            try {
+                var deleteEndpoint = restInstanceUrl + "asset/v1/content/assets/" + assetIds[i];
+                var deleteRequest = new Script.Util.HttpRequest(deleteEndpoint);
+                deleteRequest.emptyContentHandling = 0;
+                deleteRequest.retries = 2;
+                deleteRequest.continueOnError = true;
+                deleteRequest.setHeader("Authorization", "Bearer " + accessToken);
+                deleteRequest.method = "DELETE";
+                deleteRequest.contentType = "application/json";
+
+                var deleteResults = deleteRequest.send();
+                var deleteResult = deleteResults.statusCode;
+
+                deletedAssets.push({ id: assetIds[i], statusCode: deleteResult });
+            } catch(error) {
+                deletedAssets.push({ id: assetIds[i], error: error });
+            }
+        }
+        return deletedAssets;
+    }
+</script>
