@@ -1,0 +1,53 @@
+<script runat="server">
+
+    Platform.Load("Core","1");
+
+    var api = new Script.Util.WSProxy();
+
+    try {
+
+        // Retrieve Automation Names from Data Extension
+        var dataExtensionExternalKey = "retrievedautomations"; // Update with your Data Extension External Key
+        var automationNames = [];
+        var dataExtensionRows = Platform.Function.LookupRows(dataExtensionExternalKey, "isEnabled", "false"); // Assuming you have a field named "isEnabled" to determine whether the automation should be started or stopped
+        for (var i = 0; i < dataExtensionRows.length; i++) {
+            var automationName = dataExtensionRows[i]["AutomationName"]; // Assuming the field name for automation name is "AutomationName"
+            automationNames.push(automationName);
+        }
+
+        // Start or Stop Automations
+        for (var j = 0; j < automationNames.length; j++) {
+            var name = automationNames[j];
+            var action = "start"; // Change to "stop" if you want to stop automations
+
+            var cols = [
+                "Name",
+                "ProgramID",
+                "CustomerKey",
+                "Status"
+            ];
+
+            var request = api.retrieve("Automation", cols, {
+                Property: "Name",
+                SimpleOperator: "equals",
+                Value: name
+            });
+
+            var objectID = request.Results[0].ObjectID;
+
+            var props = {
+                ObjectID: objectID
+            };
+
+            var opts = {};
+
+            var result = api.performItem("Automation", props, action, opts);
+
+            Write(Stringify(result));
+        }
+
+    } catch(error) {
+        Write(Stringify(error));
+    }
+
+</script>
